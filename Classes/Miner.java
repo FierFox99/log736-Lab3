@@ -10,14 +10,33 @@ import java.util.List;
 public class Miner implements IMiner {
 
     public final static int BLOCK_SIZE = 10;
-    private long id;
+    private static ArrayList<Miner> allMiners = new ArrayList<>();
+    private int id;
     private DatagramSocket socket;
     private ArrayList<IBlock> blockchain;
     private ArrayList<ArrayList<IBlock>> branches;
     private ArrayList<Integer> neighborNodes;
     private List<Transaction> mempool;
 
-    public Miner (long id){}
+    public Miner (int id) {
+        this.id = id;
+        allMiners.add(this);
+    }
+
+    // returns the list of all existing miners (except the one we are currently in)
+    // (so returns the list of miners that this miner should be connected to)
+    public ArrayList<Miner> getAllOtherMiners() {
+        ArrayList<Miner> otherMiners = new ArrayList<>();
+
+        for (Miner miner : allMiners) {
+            if (miner == this)
+                continue;
+
+            otherMiners.add(miner);
+        }
+
+        return otherMiners;
+    }
 
     //used whenever a miner finds a branch longer than its blockchain
     private void setLongestChain(){

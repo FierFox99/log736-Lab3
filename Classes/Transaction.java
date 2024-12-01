@@ -3,15 +3,20 @@ package Classes;
 import Interfaces.ITransaction;
 
 public class Transaction implements ITransaction {
-        private long txID, clientID;
-        private boolean confirmationState;
+        private static int counterForIdOfTransactions = 0;
 
-        public Transaction(long clientID){
-                txID = clientID;
+        private int transactionId, clientId;
+        private boolean confirmationState = false;
+
+        public Transaction(int clientId){
+                this.clientId = clientId;
+                transactionId = counterForIdOfTransactions;
+                counterForIdOfTransactions++; // pour que la prochaine transaction ait un id différent
         }
 
-        public void setConfirmed(boolean isConfirmed){
-                confirmationState = isConfirmed;
+        // la méthode qu'on appel lorsque la transaction a été confirmé (Elle n'est pas confirmé par défaut, jusqu'à temps que cette fonction soit appelée)
+        public void setConfirmed(){
+                confirmationState = true;
         }
         
         public boolean isConfirmed(){

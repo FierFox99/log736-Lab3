@@ -10,14 +10,18 @@ import java.util.Map;
 public class Client implements IClient {
 
 
-    private long clientID;
-    public final static int CONFIRMATION_BLOCK_NUMBER 6;
+    private int clientId;
+    public final static int CONFIRMATION_BLOCK_NUMBER = 6;
     private DatagramSocket socket;
     private int minerPort;
-    private ArrayList<Transaction> transactions;
+    private ArrayList<Transaction> transactions = new ArrayList<>();
+
+    public Client (int clientId){
+        this.clientId = clientId;
+    }
 
     private void createTransaction(){
-        transactions.add(new transactions(clientID));
+        transactions.add(new Transaction(clientId));
     }
 
     private int getLastBlockDepth() throws IOException{
@@ -81,10 +85,6 @@ public class Client implements IClient {
         return -1;
     }
     private void waitForConfirmation(int txID) {}
-
-    public Client (long IDclient){
-        clientID = IDclient;
-    }
 
     public int init()throws IOException {        
         try {
