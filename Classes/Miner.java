@@ -13,68 +13,64 @@ public class Miner implements IMiner {
     private static ArrayList<Miner> allMiners = new ArrayList<>();
     private int id;
     private DatagramSocket socket;
-    private ArrayList<IBlock> blockchain;
-    private ArrayList<ArrayList<IBlock>> branches;
-    private ArrayList<Integer> neighborNodes;
-    private List<Transaction> mempool;
+    private ArrayList<IBlock> blockchain = new ArrayList<>();
+    private ArrayList<ArrayList<IBlock>> branches = new ArrayList<>();
+    private ArrayList<Integer> neighborNodes = new ArrayList<>();
+    private List<Transaction> mempool = new ArrayList<>();
 
-    public Miner (int id) {
+    public Miner(int id) {
         this.id = id;
         allMiners.add(this);
     }
 
-    // returns the list of all existing miners (except the one we are currently in)
-    // (so returns the list of miners that this miner should be connected to)
     public ArrayList<Miner> getAllOtherMiners() {
         ArrayList<Miner> otherMiners = new ArrayList<>();
-
         for (Miner miner : allMiners) {
-            if (miner == this)
-                continue;
-
-            otherMiners.add(miner);
+            if (miner != this) {
+                otherMiners.add(miner);
+            }
         }
-
         return otherMiners;
     }
 
-    //used whenever a miner finds a branch longer than its blockchain
-    private void setLongestChain(){
-
+    private void setLongestChain() {
+        // Logic to find and set the longest chain.
     }
 
-    //generates a new block, finds the corresponding PoW and sets the block's hash and nounce
-    private IBlock mineBlock(){
-
+    private IBlock mineBlock() {
+        // Mining logic goes here.
+        return null; // Replace with an actual IBlock implementation.
     }
 
     private void addBlock() {
-
+        // Logic to add a block to the chain.
     }
 
-    private boolean validateBlock(IBlock previousBlock, IBlock currentBlock){
-
+    private boolean validateBlock(IBlock previousBlock, IBlock currentBlock) {
+        // Logic to validate blocks.
+        return true; // Replace with actual validation logic.
     }
 
-    private void addToMemPool(Transaction tx){}
+    private void addToMemPool(Transaction tx) {
+        mempool.add(tx); // Add transaction to the mempool.
+    }
 
-    //returns the genesis block
     public ArrayList<IBlock> init() throws IOException {
+        // Initialize the genesis block.
+        return blockchain; // Return initialized blockchain.
     }
 
-    //returns a list of connected nodes
     public ArrayList<Integer> connect() throws IOException {
-
+        // Return a list of connected nodes.
+        return neighborNodes;
     }
 
-    //calls mineBlock method whenever it collects transactions and validates received blocks and adds it to the current chain
-    public void listenToNetwork()throws IOException{
-
+    public void listenToNetwork() throws IOException {
+        // Logic for listening to network activities.
     }
 
-    public ArrayList<Block> synchronise() throws IOException{
-
+    public ArrayList<Block> synchronise() throws IOException {
+        // Logic for synchronization with the network.
+        return new ArrayList<>(); // Return synchronized blocks.
     }
-
-
 }
