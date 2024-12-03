@@ -5,6 +5,7 @@ import AlgoBitcoin.Interfaces.IMiner;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -153,6 +154,8 @@ public class Miner implements IMiner {
             String messageOfRequest = new String(datagramPacketOfRequestReceived.getData(), 0, datagramPacketOfRequestReceived.getLength());
 
             System.out.println(messageOfRequest);
+
+            sendResponseMessageToARequest("Response: " + messageOfRequest, datagramPacketOfRequestReceived);
         }
 
         // Simulation d'écoute réseau
@@ -181,7 +184,22 @@ public class Miner implements IMiner {
         return port;
     }
 
-    private void handleRequest(String requestMessage) {
+    private void handleRequest(String message, DatagramPacket datagramPacketOfRequest) {
 
+    }
+
+    private void sendResponseMessageToARequest(String message, DatagramPacket datagramPacketOfRequest) throws IOException {
+        // On envoie le message au client ayant envoyé cette requête (selon les infos du client envoyés dans celle-ci)
+        trySendingMessage(message, datagramPacketOfRequest.getAddress(), datagramPacketOfRequest.getPort());
+    }
+
+    private void trySendingMessage(String message, InetAddress address, int port) throws IOException {
+        DatagramPacket datagramPacketToSendRequest = new DatagramPacket(new byte[1024], 1024);
+        datagramPacketToSendRequest.setPort(port);
+        datagramPacketToSendRequest.setAddress(address);
+        datagramPacketToSendRequest.setLength(message.length());
+        datagramPacketToSendRequest.setData(message.getBytes());
+
+        socket.send(datagramPacketToSendRequest);
     }
 }

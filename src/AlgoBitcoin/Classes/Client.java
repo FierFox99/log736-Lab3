@@ -141,7 +141,9 @@ public class Client implements IClient {
         // on se connecte au port du mineur associé à ce client
         socket.connect(minerAdress, minerPort);
 
-        trySendingMessage("Bonjour");
+        trySendingMessage("Bonjour" + clientId);
+
+        System.out.println(waitToReceiveResponseToRequest());
 
         return socket.isConnected() ? 1 : 0;
     }
@@ -184,5 +186,14 @@ public class Client implements IClient {
         datagramPacketToSendRequest.setData(message.getBytes());
 
         socket.send(datagramPacketToSendRequest);
+    }
+
+    private String waitToReceiveResponseToRequest() throws IOException {
+        DatagramPacket datagramPacketOfRequestReceived = new DatagramPacket(new byte[1024], 1024);
+
+        // this functions makes the client wait for a response from the miner
+        socket.receive(datagramPacketOfRequestReceived);
+
+        return new String(datagramPacketOfRequestReceived.getData(), 0, datagramPacketOfRequestReceived.getLength());
     }
 }
