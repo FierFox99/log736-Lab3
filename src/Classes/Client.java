@@ -140,6 +140,8 @@ public class Client implements IClient {
         // on se connecte au port du mineur associé à ce client
         socket.connect(minerAdress, minerPort);
 
+        trySendingMessage("Bonjour");
+
         return socket.isConnected() ? 1 : 0;
     }
 
@@ -152,7 +154,7 @@ public class Client implements IClient {
             return;
         }
 
-        try {
+        /*try {
             // PrintWriter writer = new PrintWriter(socket.getOutputStream(), true);
             // writer.println("TRANSACTION:" + tx.toString());
             trySendingMessage("TRANSACTION:" + tx.toString());
@@ -169,7 +171,7 @@ public class Client implements IClient {
         } catch (IOException e) {
             System.err.println("Erreur lors de l'envoi de la transaction : " + e.getMessage());
             e.printStackTrace();
-        }
+        }*/
 
     }
 

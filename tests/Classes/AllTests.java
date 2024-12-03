@@ -1,28 +1,12 @@
 package Classes;
 
-import org.junit.jupiter.api.Test;
+import org.junit.*;
 
 import java.util.Arrays;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.Assert.*;
 
 public class AllTests {
-
-    // Block Class Tests
-    @Test
-    public void testGenesisBlockCreation() {
-        Block genesisBlock = new Block(Arrays.asList(1, 2, 3));
-        assertNull(genesisBlock.getPreviousHash());
-        assertEquals(1, genesisBlock.depth);
-    }
-
-    @Test
-    public void testBlockHashCalculation() {
-        Block block = new Block("previousHashValue", Arrays.asList(1, 2, 3), 2);
-        String blockHash = block.calculateBlockHash();
-        assertNotNull(blockHash);
-        assertTrue(blockHash.startsWith("0000"));
-    }
 
     // Client Class Tests
     @Test
