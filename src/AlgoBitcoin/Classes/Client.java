@@ -141,9 +141,11 @@ public class Client implements IClient {
         // on se connecte au port du mineur associé à ce client
         socket.connect(minerAdress, minerPort);
 
+        /*
+        // EXEMPLE POUR TESTER
         trySendingMessage("Bonjour" + clientId);
 
-        System.out.println(waitToReceiveResponseToRequest());
+        System.out.println(waitToReceiveResponseToRequest());*/
 
         return socket.isConnected() ? 1 : 0;
     }
@@ -157,16 +159,13 @@ public class Client implements IClient {
             return;
         }
 
-        /*try {
-            // PrintWriter writer = new PrintWriter(socket.getOutputStream(), true);
-            // writer.println("TRANSACTION:" + tx.toString());
-            trySendingMessage("TRANSACTION:" + tx.toString());
+        try {
+            trySendingMessage("TRANSACTION:" + tx.serializeThisTransaction());
 
-            BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            String response = reader.readLine();
+            String response = waitToReceiveResponseToRequest();
 
-            if ("ACK".equals(response)) {
-                System.out.println("Transaction envoyée avec succès au mineur : " + tx.toString());
+            if ("OK".equals(response)) {
+                System.out.println("Transaction envoyée avec succès au mineur : " + response);
                 waitForConfirmation(tx.transactionId);
             } else {
                 System.err.println("Échec de l'envoi de la transaction : " + response);
@@ -174,8 +173,7 @@ public class Client implements IClient {
         } catch (IOException e) {
             System.err.println("Erreur lors de l'envoi de la transaction : " + e.getMessage());
             e.printStackTrace();
-        }*/
-
+        }
     }
 
     private void trySendingMessage(String message) throws IOException {

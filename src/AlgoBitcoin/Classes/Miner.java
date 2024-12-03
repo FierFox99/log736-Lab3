@@ -7,7 +7,9 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Objects;
 
 public class Miner implements IMiner {
 
@@ -20,8 +22,9 @@ public class Miner implements IMiner {
     private ArrayList<IBlock> blockchain = new ArrayList<>();
     private ArrayList<ArrayList<IBlock>> branches = new ArrayList<>();
     private ArrayList<Integer> neighborNodes = new ArrayList<>();
-    private List<Transaction> mempool = new ArrayList<>(); // les transactions que nous avons reçu en attente d'être confirmés et insérés dans un bloc
+    private volatile List<Transaction> mempool = new ArrayList<>(); // les transactions que nous avons reçu en attente d'être confirmés et insérés dans un bloc
     private ArrayList<Thread> threadConnexions = new ArrayList<>();
+    private HashMap<Integer,DatagramPacket> associationTransactionIdAvecInfosClient = new HashMap<>(); // ce dictionnaire associe l'id d'une transaction à les informations nécessaires pour retourner une réponse au client ayant envoyé cette transaction
 
     public Miner(int id) throws IOException {
         this.id = id;
@@ -31,15 +34,23 @@ public class Miner implements IMiner {
 
         init(); // retourne le blockchain why?
 
-        Thread thread = new Thread(() -> {
+        Thread threadListener = new Thread(() -> {
             try {
                 listenToNetwork();
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
-        }, "threadMineur" + port + "Listener");
-        threadConnexions.add(thread);
-        thread.start();
+        }, "threadMineur" + port + "ListenerAuxRequêtes");
+        threadConnexions.add(threadListener);
+        threadListener.start();
+
+        Thread threadMineur = new Thread(() -> {
+            // ce thread essaie continuellement de miner des blocs de transactions
+            // (Celui est en action seulement lorsqu'il y a des transactions à mettre en blocs dans le mempool)
+            listenToMempool();
+        }, "threadMineur" + port + "EssaiDeMiner");
+        threadConnexions.add(threadMineur);
+        threadMineur.start();
     }
 
     public ArrayList<Miner> getAllOtherMiners() {
@@ -57,7 +68,7 @@ public class Miner implements IMiner {
         for (ArrayList<IBlock> branch : branches) {
             if (branch.size() > blockchain.size()) {
                 blockchain = new ArrayList<>(branch);
-                System.out.println("Chaîne la plus longue définie par le mineur " + id);
+                logInConsole("Chaîne la plus longue définie par le mineur " + id);
             }
         }
 
@@ -67,6 +78,8 @@ public class Miner implements IMiner {
     private IBlock mineBlock() {
         // Mining logic goes here.
         ArrayList<Transaction> transactionsToConfirm = (ArrayList<Transaction>) mempool;
+
+        logInConsole("Création d'un nouveau bloc en cours");
 
         if (transactionsToConfirm.size() > BLOCK_SIZE) {
             // trop de transactions pour un seul bloc, donc il faut seulement mettre BLOCK_SIZE (nombre) de transactions dans le bloc
@@ -112,20 +125,20 @@ public class Miner implements IMiner {
     private void addBlock(Block block) {
         // Logic to add a block to the end of the chain.
         blockchain.add(block);
-        System.out.println("Bloc ajouté par le mineur " + id);
+        logInConsole("Bloc ajouté par le mineur " + id);
     }
 
     private void addToMemPool(Transaction tx){
+        logInConsole("Transaction ajoutée à la mempool par le mineur " + id);
         mempool.add(tx);
-        System.out.println("Transaction ajoutée à la mempool par le mineur " + id);
     }
 
     public ArrayList<IBlock> init() {
         // Initialize the genesis block.
         Block newGenesisBlock = (Block) mineBlock();
 
+        logInConsole("Bloc de genèse créé par le mineur " + id);
         addBlock(newGenesisBlock);
-        System.out.println("Bloc de genèse créé par le mineur " + id);
 
         return blockchain; // Return initialized blockchain.
     }
@@ -136,7 +149,7 @@ public class Miner implements IMiner {
             connectedNodes.add(miner.id);
         }
         this.neighborNodes = connectedNodes;
-        System.out.println("Mineur " + id + " connecté aux nœuds : " + connectedNodes);
+        logInConsole("Mineur " + id + " connecté aux nœuds : " + connectedNodes);
         return connectedNodes;
     }
 
@@ -147,28 +160,31 @@ public class Miner implements IMiner {
         // this datagramPacket represents a request received by the miner
         DatagramPacket datagramPacketOfRequestReceived = new DatagramPacket(bufferToReceive, 1024);
 
+        logInConsole("Prepared to accept requests");
+
         while (true) {
             // this function waits until a request is received
             socket.receive(datagramPacketOfRequestReceived);
 
             String messageOfRequest = new String(datagramPacketOfRequestReceived.getData(), 0, datagramPacketOfRequestReceived.getLength());
 
-            System.out.println(messageOfRequest);
+            handleRequest(messageOfRequest, datagramPacketOfRequestReceived);
 
-            sendResponseMessageToARequest("Response: " + messageOfRequest, datagramPacketOfRequestReceived);
+            // EXEMPLE POUR TEST: sendResponseMessageToARequest("Response: " + messageOfRequest, datagramPacketOfRequestReceived);
         }
+    }
 
-        // Simulation d'écoute réseau
-        /*if (message instanceof Transaction) {
-            addToMemPool((Transaction) message);
-        } else if (message instanceof IBlock) {
-            IBlock receivedBlock = (IBlock) message;
-            if (validateBlock(blockchain.get(blockchain.size() - 1), receivedBlock)) {
-                addBlock(receivedBlock);
-            } else {
-                System.out.println("Bloc invalide reçu par le mineur " + id);
+    private void listenToMempool() {
+        while (true) {
+            if (mempool.size() == 0 && blockchain.size() != 0) {
+                // aucunes transactions à mettre en blocs, donc on arrête (à moins, qu'il s'agit du bloc genèse (puisque n'a pas besoin de contenir de transactions))
+                continue;
             }
-        }*/
+
+            Block newBlock = (Block) mineBlock();
+            addBlock(newBlock);
+            logInConsole("Il y a dorénavant " + blockchain.size() + " blocks dans le blockchain.");
+        }
     }
 
     public ArrayList<Block> synchronise() throws IOException{
@@ -185,7 +201,21 @@ public class Miner implements IMiner {
     }
 
     private void handleRequest(String message, DatagramPacket datagramPacketOfRequest) {
+        logInConsole("Requête reçue (" + message + ")");
 
+        if (message.contains(":") && (Objects.equals(message.split(":")[0], "TRANSACTION"))) {
+            // la requête s'agit d'une transaction
+            try {
+                Transaction transactionObtenue = Transaction.deserializeThisTransaction(message.split(":")[1]);
+
+                addToMemPool(transactionObtenue);
+                associationTransactionIdAvecInfosClient.put(transactionObtenue.transactionId, datagramPacketOfRequest);
+
+                System.out.println("Transaction reçu #" + transactionObtenue.transactionId);
+            } catch (Exception e) {
+                logInConsole("An error occured during the deserialization of a transaction: " + e.getMessage());
+            }
+        }
     }
 
     private void sendResponseMessageToARequest(String message, DatagramPacket datagramPacketOfRequest) throws IOException {
@@ -201,5 +231,9 @@ public class Miner implements IMiner {
         datagramPacketToSendRequest.setData(message.getBytes());
 
         socket.send(datagramPacketToSendRequest);
+    }
+
+    private void logInConsole(String message) {
+        System.out.println("Dans miner du port #" + this.port + " : " + message);
     }
 }

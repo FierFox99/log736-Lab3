@@ -2,7 +2,10 @@ package AlgoBitcoin.Classes;
 
 import AlgoBitcoin.Interfaces.ITransaction;
 
-public class Transaction implements ITransaction {
+import java.io.*;
+import java.util.Base64;
+
+public class Transaction implements ITransaction, Serializable {
         private static int counterForIdOfTransactions = 0;
 
         public int transactionId, clientId;
@@ -21,6 +24,23 @@ public class Transaction implements ITransaction {
         
         public boolean isConfirmed(){
                 return confirmationState;
+        }
+
+        public String serializeThisTransaction() throws IOException {
+                ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+                ObjectOutputStream outputStream = new ObjectOutputStream( byteArrayOutputStream );
+                outputStream.writeObject( this ); // on passe l'objet à sérializer
+                outputStream.close();
+                return Base64.getEncoder().encodeToString(byteArrayOutputStream.toByteArray());
+        }
+
+        public static Transaction deserializeThisTransaction(String serializedTransaction) throws IOException, ClassNotFoundException {
+                byte [] data = Base64.getDecoder().decode( serializedTransaction );
+                ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(data));
+                Object objet  = ois.readObject();
+                ois.close();
+
+                return (Transaction) objet;
         }
 
 }
