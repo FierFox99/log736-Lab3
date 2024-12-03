@@ -110,7 +110,7 @@ public class Client implements IClient {
         }
     }
 
-    public int init()throws IOException {        
+    public int init()throws IOException {   
         try {
             socket = new Socket("localhost", minerPort);
             System.out.println("Connexion au mineur établie : localhost :" + minerPort);
@@ -124,7 +124,8 @@ public class Client implements IClient {
         }
     }
 
-    public void sendTransaction(Transaction tx)throws IOException {
+    public void sendTransaction()throws IOException {
+        Transaction tx = new Transaction(clientId);
         if (socket == null || !socket.isConnected()) {
             System.err.println("Socket non connectée. Veuillez initialiser la connexion au mineur.");
             return;
