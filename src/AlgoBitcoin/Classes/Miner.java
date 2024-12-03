@@ -7,10 +7,7 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 public class Miner implements IMiner {
 
@@ -21,7 +18,7 @@ public class Miner implements IMiner {
     private DatagramSocket socketOfClient;
     private int port;
     private static ArrayList<IBlock> blockchain = new ArrayList<>();
-    private ArrayList<ArrayList<IBlock>> branches = new ArrayList<>();
+    private static ArrayList<ArrayList<IBlock>> branches = new ArrayList<>();
     private ArrayList<Integer> neighborNodes = new ArrayList<>();
     private HashMap<Integer, ConnectionInterMiners> connectionstoOtherMiners = new HashMap<>(); // clé = id d'un autre mineur, la valeur = les informations de connexion à ce mineur en question
     private volatile List<Transaction> mempool = new ArrayList<>(); // les transactions que nous avons reçu en attente d'être confirmés et insérés dans un bloc
@@ -48,7 +45,11 @@ public class Miner implements IMiner {
         Thread threadMineur = new Thread(() -> {
             // ce thread essaie continuellement de miner des blocs de transactions
             // (Celui est en action seulement lorsqu'il y a des transactions à mettre en blocs dans le mempool)
-            listenToMempool();
+            try {
+                listenToMempool();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         }, "threadMineur" + port + "EssaiDeMiner");
         threadConnexions.add(threadMineur);
         threadMineur.start();
@@ -78,7 +79,7 @@ public class Miner implements IMiner {
 
     private IBlock mineBlock() {
         // Mining logic goes here.
-        ArrayList<Transaction> transactionsToConfirm = (ArrayList<Transaction>) mempool;
+        ArrayList<Transaction> transactionsToConfirm = new ArrayList<>(mempool);
 
         logInConsole("Création d'un nouveau bloc en cours");
 
@@ -196,7 +197,7 @@ public class Miner implements IMiner {
     }
 
     // gère les transactions en attente de confirmation
-    private void listenToMempool() {
+    private void listenToMempool() throws IOException {
         while (true) {
             if (mempool.size() == 0) {
                 // aucunes transactions à mettre en blocs)
@@ -228,45 +229,53 @@ public class Miner implements IMiner {
             logInConsole("Le bloc " + newBlock.blockHash + " a été validé par plus de la moitié des mineurs.");
 
             // on check si le blockchain avec ce block est bien le plus long blockchain qu'on connait
+            ArrayList<IBlock> branche = new ArrayList<>(blockchain);
+            branche.add(newBlock);
 
+            branches.add(branche); // cette branche est une nouvelle version possible du blockchain
+            setLongestChain(); // on check si cette branche est la meilleure
 
+            if (branche.equals(blockchain)) {
+                logInConsole("Ma branche a été choisie pour devenir le blockchain (donc mon block a été rajouté au blockchain).");
+            }
 
-            // si, oui
-            addBlock(newBlock);
+            /*addBlock(newBlock);*/
             logInConsole("Il y a dorénavant " + blockchain.size() + " blocks dans le blockchain.");
 
             // on diffuse ce nouveau blockchain aux autres mineurs
+            logInConsole("On envoie le nouveau block du blockchain aux autres mineurs.");
+            synchronise();
 
+            // répondre au client
+            logInConsole("On répond aux clients ayant effectués les requêtes contenus dans ce bloc.");
 
+            String responseToClient = "OK";
+            HashSet<DatagramPacket> clientsToRespondTo = new HashSet<>();
 
+            for (Integer i: newBlock.transactions) {
+                responseToClient += (":" + i); // l'id d'une des transactions du nouveau bloc
 
+                clientsToRespondTo.add(associationTransactionIdAvecInfosClient.get(i));
+            }
 
-
+            for (DatagramPacket dp : clientsToRespondTo) {
+                sendResponseMessageToClient(responseToClient, dp);
+            }
         }
     }
 
-    public ArrayList<Block> synchronise() throws IOException{
-       /*    ArrayList<Block> longestChain = new ArrayList<>(blockchain); // Copie locale de la chaîne actuelle
+    public ArrayList<Block> synchronise() {
+        for (Integer i: neighborNodes) {
+            ConnectionInterMiners connection = connectionstoOtherMiners.get(i);
 
-        for (Miner neighbor : getAllOtherMiners()) {
-            ArrayList<IBlock> neighborChain = neighbor.blockchain; // Accéder à la blockchain d'un voisin
-
-            // Vérifier si la chaîne du voisin est valide et plus longue que la chaîne actuelle
-            if (neighborChain.size() > longestChain.size()) {
-                longestChain = new ArrayList<>(neighborChain);
+            try {
+                trySendingMessage("ADDBLOCK:" + ((Block) blockchain.get(blockchain.size() - 1)).blockHash, connection.inetAddressOfTheOtherMiner, connection.portOfTheOtherMiner, connection.socketConnection);
+            } catch (Exception e) {
+                logInConsole("An error occured during the deserialization of a block: " + e.getMessage());
             }
         }
 
-        // Mettre à jour la blockchain locale si une chaîne plus longue est trouvée
-        if (longestChain.size() > blockchain.size()) {
-            blockchain = new ArrayList<>(longestChain);
-            logInConsole("La blockchain a été synchronisée avec la chaîne la plus longue trouvée.");
-        } else {
-            logInConsole("Aucune chaîne plus longue trouvée. Pas de synchronisation nécessaire.");
-        }
-
-        return blockchain; // Retourne la blockchain synchronisée*/
-        return null; // TODO
+        return new ArrayList<>(); // pas important
     }
 
     private boolean validateBlock(IBlock currentBlock){
@@ -327,9 +336,17 @@ public class Miner implements IMiner {
             nbConfirmationsParBloc.put(blockHash, nbConfirmationsParBloc.get(blockHash) + 1);
             logInConsole("Validations pour le bloc (" + blockHash + "): (" + nbConfirmationsParBloc.get(blockHash) + "/" + allMiners.size() + ")");
         }
+
+        // indique qu'il faut ajouté ce block dans notre blockchain
+        // syntaxe: "ADDBLOCK:{blockHash}"
+        if (message.contains(":") && (Objects.equals(message.split(":")[0], "ADDBLOCK"))) {
+            logInConsole("Le bloc " + message.split(":")[1] + " a été rajouté à notre blockchain");
+
+            // pas besoin de répondre
+        }
     }
 
-    private void sendResponseMessageToARequest(String message, DatagramPacket datagramPacketOfRequest) throws IOException {
+    private void sendResponseMessageToClient(String message, DatagramPacket datagramPacketOfRequest) throws IOException {
         // On envoie le message au client ayant envoyé cette requête (selon les infos du client envoyés dans celle-ci)
         trySendingMessageToClient(message, datagramPacketOfRequest.getAddress(), datagramPacketOfRequest.getPort());
     }
@@ -352,7 +369,6 @@ public class Miner implements IMiner {
         System.out.println("Dans miner #" + this.id + " : " + message);
     }
 
-    // TODO is this the "synchronise()" function?
     private void sendNewBlockToOtherMiners(Block block) {
         for (Integer i: neighborNodes) {
             ConnectionInterMiners connection = connectionstoOtherMiners.get(i);

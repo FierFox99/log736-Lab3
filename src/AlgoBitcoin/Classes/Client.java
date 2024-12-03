@@ -10,6 +10,7 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Objects;
 
 public class Client implements IClient {
 
@@ -112,27 +113,14 @@ public class Client implements IClient {
         return -1;*/
         return 0; // TODO to change
     }
-    private void waitForConfirmation(int txID) {
-        try {
-            int initialDepth = getLastBlockDepth();
-            if (initialDepth < 0) {
-                System.err.println("Impossible d'obtenir la profondeur initiale du bloc.");
-                return;
-            }
+    private String waitForConfirmation(int txID) throws IOException {
+        String response = waitToReceiveResponseToRequest();
 
-            while (true) {
-                int currentDepth = getLastBlockDepth();
-                if (currentDepth - initialDepth >= CONFIRMATION_BLOCK_NUMBER) {
-                    System.out.println("Transaction " + txID + " confirmée après " + CONFIRMATION_BLOCK_NUMBER + " blocs.");
-                    break;
-                }
-                System.out.println("En attente de confirmation pour la transaction " + txID + "...");
-                Thread.sleep(5000); // Attendre 5 secondes avant de vérifier à nouveau
-            }
-        } catch (Exception e) {
-            System.err.println("Erreur lors de l'attente de confirmation : " + e.getMessage());
-            e.printStackTrace();
+        if (response.contains(txID + "")) {
+            return response;
         }
+
+        return null;
     }
 
     public int init()throws IOException {
@@ -140,12 +128,6 @@ public class Client implements IClient {
 
         // on se connecte au port du mineur associé à ce client
         socket.connect(minerAdress, minerPort);
-
-        /*
-        // EXEMPLE POUR TESTER
-        trySendingMessage("Bonjour" + clientId);
-
-        System.out.println(waitToReceiveResponseToRequest());*/
 
         return socket.isConnected() ? 1 : 0;
     }
@@ -163,11 +145,11 @@ public class Client implements IClient {
         try {
             trySendingMessage("TRANSACTION:" + tx.serializeThisTransaction());
 
-            String response = waitToReceiveResponseToRequest();
+            String response = waitForConfirmation(tx.transactionId);
 
-            if ("OK".equals(response)) {
+            if (response.startsWith("OK")) {
                 System.out.println("Transaction envoyée avec succès au mineur : " + response);
-                waitForConfirmation(tx.transactionId);
+                confirmAllTransactionsInTheBlock(response);
             } else {
                 System.err.println("Échec de l'envoi de la transaction : " + response);
             }
@@ -194,5 +176,19 @@ public class Client implements IClient {
         socket.receive(datagramPacketOfRequestReceived);
 
         return new String(datagramPacketOfRequestReceived.getData(), 0, datagramPacketOfRequestReceived.getLength());
+    }
+
+    private void confirmAllTransactionsInTheBlock(String response) {
+        for (String transactionId: response.split(":")) {
+            if (Objects.equals(transactionId, "OK")) {
+                continue;
+            }
+
+            for (Transaction t: transactions) {
+                if (Integer.parseInt(transactionId) == t.transactionId) {
+                    t.setConfirmed();
+                }
+            }
+        }
     }
 }

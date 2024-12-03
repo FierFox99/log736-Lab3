@@ -20,6 +20,7 @@ public class Transaction implements ITransaction, Serializable {
         // la méthode qu'on appel lorsque la transaction a été confirmé (Elle n'est pas confirmé par défaut, jusqu'à temps que cette fonction soit appelée)
         public void setConfirmed(){
                 confirmationState = true;
+                System.out.println("La transaction #" + transactionId +" a été confirmée.");
         }
         
         public boolean isConfirmed(){

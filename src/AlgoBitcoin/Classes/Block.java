@@ -15,7 +15,7 @@ public class Block implements IBlock, Serializable {
     private int nounce = 0; // (la valeur de départ n'est pas très importante tant qu'il s'agit d'un int) (puisque cette propriété est juste un compteur qui changera de valeur lorsqu'on essaiera de hasher le bloc)
     private long timestamp; //  (le temps à la création du block? (utile pour différencier les blocks dans le hashage au lieu d'utiliser des clés?))
     public int depth; // la profondeur du bloc (ou son numéro dans le blockchain) (ou le nombre de bloc incluant ce bloc et ceux qui le précède)
-    private List<Integer> transactions;
+    public List<Integer> transactions;
     public String blockHash = null; // hash du bloc actuel?
 
     // Fonction appelée si on crée un nouveau bloc à pars entière (un bloc Genèse) (donc crée une nouvelle blockchain)
@@ -40,7 +40,8 @@ public class Block implements IBlock, Serializable {
 
     // hash les transactions incluses dans ce bloc
     public void calculateRoot() {
-        merkleRoot = HashfromString.sha256Hash(Integer.toString(depth) + transactions.toString() + Integer.toString(nounce)); // (il faut utiliser cette fonction pour hasher les transactions dans cette méthode)
+        // on utilise le timestamp dans l'équation, sinon nous obtiendrons toujours le même résultat (probablement partiellement puisqu'on n'a pas de clés dans cet exemple)
+        merkleRoot = HashfromString.sha256Hash(Integer.toString(depth) + transactions.toString() + Integer.toString(nounce) + Long.toString(timestamp)); // (il faut utiliser cette fonction pour hasher les transactions dans cette méthode)
     }
 
     // Génère le hash représentant ce block pour pouvoir le passer à la prochaine profondeur de ce bloc
