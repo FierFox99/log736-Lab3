@@ -2,6 +2,7 @@ package AlgoBitcoin.Classes;
 
 
 
+import AlgoBitcoin.Interfaces.IBlock;
 import AlgoBitcoin.Interfaces.IClient;
 
 import java.io.*;
@@ -49,69 +50,22 @@ public class Client implements IClient {
     }
 
     private int getLastBlockDepth() throws IOException{
-        /*try {
-            if (socket != null && socket.isConnected()) {
-                //PrintWriter writer = new PrintWriter(socket.getOutputStream(), true);
-                //writer.println("DEMANDE_PROFONDEUR");
-                trySendingMessage("DEMANDE_PROFONDEUR");
-
-                BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                String response = reader.readLine();
-
-                if (response != null) {
-                    try {
-                        int profondeur = Integer.parseInt(response);
-                        System.out.println("Profondeur reçue du mineur : " + profondeur);
-                        return profondeur;
-                    } catch (NumberFormatException e) {
-                        System.err.println("Réponse invalide reçue du mineur : " + response);
-                    }
-                } else {
-                    System.err.println("Aucune réponse reçue du mineur.");
-                }
-            } else {
-                System.err.println("Socket non connectée.");
-            }
-        } catch (IOException e) {
-            System.err.println("Erreur lors de la communication avec le mineur : " + e.getMessage());
-            e.printStackTrace();
-        }
-        return -1;*/
-        return 0; // TODO to change
+        ArrayList<IBlock> blockchain = Miner.getBlockchain();
+        return ((Block) blockchain.get(blockchain.size() - 1)).depth;
     }
 
-    private int getTxBlockDepth() throws IOException{
-        /*try {
-            if (socket != null && socket.isConnected()) {
+    private int getTxBlockDepth(int txId) throws IOException{
+        ArrayList<IBlock> blockchain = Miner.getBlockchain();
 
-                //PrintWriter writer = new PrintWriter(socket.getOutputStream(), true);
-                //writer.println("DEMANDE_PROFONDEUR_TRANSACTION:" + transactionId);
-                trySendingMessage("DEMANDE_PROFONDEUR_TRANSACTION:" + transactionId);
+        for (IBlock block: blockchain) {
+            Block realBlock = (Block) block;
 
-
-                BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                String response = reader.readLine();
-
-                if (response != null) {
-                    try {
-                        int profondeur = Integer.parseInt(response);
-                        System.out.println("Profondeur du bloc contenant la transaction " + transactionId + " : " + profondeur);
-                        return profondeur;
-                    } catch (NumberFormatException e) {
-                        System.err.println("Réponse invalide reçue du mineur pour la transaction : " + response);
-                    }
-                } else {
-                    System.err.println("Aucune réponse reçue du mineur pour la transaction.");
-                }
-            } else {
-                System.err.println("Socket non connectée.");
+            if (realBlock.transactions.contains(txId)) {
+                return realBlock.depth;
             }
-        } catch (IOException e) {
-            System.err.println("Erreur lors de la communication avec le mineur : " + e.getMessage());
-            e.printStackTrace();
         }
-        return -1;*/
-        return 0; // TODO to change
+
+        return 0;
     }
     private String waitForConfirmation(int txID) throws IOException {
         String response = waitToReceiveResponseToRequest();

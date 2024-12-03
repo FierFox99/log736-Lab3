@@ -20,6 +20,5 @@ public class Simulation{
         Client client1 = new Client(1,miner1.getPort());
         client1.sendTransaction();
         Client client2 = new Client(2,miner2.getPort());
-
     }
 }

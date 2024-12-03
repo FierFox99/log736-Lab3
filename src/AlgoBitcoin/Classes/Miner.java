@@ -18,6 +18,11 @@ public class Miner implements IMiner {
     private DatagramSocket socketOfThisMiner;
     private int port;
     private static ArrayList<IBlock> blockchain = new ArrayList<>();
+
+    public static ArrayList<IBlock> getBlockchain() {
+        return blockchain;
+    }
+
     private static ArrayList<ArrayList<IBlock>> branches = new ArrayList<>();
     private ArrayList<Integer> neighborNodes = new ArrayList<>();
     private HashMap<Integer, ConnectionInterMiners> connectionstoOtherMiners = new HashMap<>(); // clé = id d'un autre mineur, la valeur = les informations de connexion à ce mineur en question
