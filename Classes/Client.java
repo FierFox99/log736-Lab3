@@ -12,15 +12,15 @@ import java.util.Map;
 
 public class Client implements IClient {
 
-
     private int clientId;
     public final static int CONFIRMATION_BLOCK_NUMBER = 6;
     private DatagramSocket socket;
     private int minerPort;
     private ArrayList<Transaction> transactions = new ArrayList<>();
 
-    public Client (int clientId){
+    public Client(int clientId, int minerPort) {
         this.clientId = clientId;
+        this.minerPort = minerPort;
     }
 
     private void createTransaction(){
@@ -87,7 +87,28 @@ public class Client implements IClient {
         }
         return -1;
     }
-    private void waitForConfirmation(int txID) {}
+    private void waitForConfirmation(int txID) {
+        try {
+            int initialDepth = getLastBlockDepth();
+            if (initialDepth < 0) {
+                System.err.println("Impossible d'obtenir la profondeur initiale du bloc.");
+                return;
+            }
+
+            while (true) {
+                int currentDepth = getLastBlockDepth();
+                if (currentDepth - initialDepth >= CONFIRMATION_BLOCK_NUMBER) {
+                    System.out.println("Transaction " + txID + " confirmée après " + CONFIRMATION_BLOCK_NUMBER + " blocs.");
+                    break;
+                }
+                System.out.println("En attente de confirmation pour la transaction " + txID + "...");
+                Thread.sleep(5000); // Attendre 5 secondes avant de vérifier à nouveau
+            }
+        } catch (Exception e) {
+            System.err.println("Erreur lors de l'attente de confirmation : " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
 
     public int init()throws IOException {        
         try {
@@ -104,7 +125,28 @@ public class Client implements IClient {
     }
 
     public void sendTransaction(Transaction tx)throws IOException {
+        if (socket == null || !socket.isConnected()) {
+            System.err.println("Socket non connectée. Veuillez initialiser la connexion au mineur.");
+            return;
+        }
 
+        try {
+            PrintWriter writer = new PrintWriter(socket.getOutputStream(), true);
+            writer.println("TRANSACTION:" + tx.toString());
+
+            BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            String response = reader.readLine();
+
+            if ("ACK".equals(response)) {
+                System.out.println("Transaction envoyée avec succès au mineur : " + tx.toString());
+                waitForConfirmation(tx.getId());
+            } else {
+                System.err.println("Échec de l'envoi de la transaction : " + response);
+            }
+        } catch (IOException e) {
+            System.err.println("Erreur lors de l'envoi de la transaction : " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     
