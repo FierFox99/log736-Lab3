@@ -163,7 +163,6 @@ public class Client implements IClient {
         try {
             trySendingMessage("TRANSACTION:" + tx.serializeThisTransaction());
 
-        System.out.println("test");
             String response = waitToReceiveResponseToRequest();
 
             if ("OK".equals(response)) {

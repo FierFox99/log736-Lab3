@@ -1,5 +1,6 @@
 package AlgoBitcoin.Classes;
 
+import AlgoBitcoin.Classes.Custom.ConnectionInterMiners;
 import AlgoBitcoin.Interfaces.IBlock;
 import AlgoBitcoin.Interfaces.IMiner;
 import java.io.IOException;
@@ -22,6 +23,7 @@ public class Miner implements IMiner {
     private ArrayList<IBlock> blockchain = new ArrayList<>();
     private ArrayList<ArrayList<IBlock>> branches = new ArrayList<>();
     private ArrayList<Integer> neighborNodes = new ArrayList<>();
+    private HashMap<Integer, ConnectionInterMiners> connectionstoOtherMiners = new HashMap<>(); // clé = id d'un autre mineur, la valeur = les informations de connexion à ce mineur en question
     private volatile List<Transaction> mempool = new ArrayList<>(); // les transactions que nous avons reçu en attente d'être confirmés et insérés dans un bloc
     private ArrayList<Thread> threadConnexions = new ArrayList<>();
     private HashMap<Integer,DatagramPacket> associationTransactionIdAvecInfosClient = new HashMap<>(); // ce dictionnaire associe l'id d'une transaction à les informations nécessaires pour retourner une réponse au client ayant envoyé cette transaction
@@ -31,8 +33,6 @@ public class Miner implements IMiner {
         this.port = portCounter;
         portCounter += 100;
         allMiners.add(this);
-
-        init(); // retourne le blockchain why?
 
         Thread threadListener = new Thread(() -> {
             try {
@@ -126,9 +126,6 @@ public class Miner implements IMiner {
         // Logic to add a block to the end of the chain.
         blockchain.add(block);
         logInConsole("Bloc ajouté par le mineur " + id);
-        for (Miner neighbor : getAllOtherMiners()) {
-            neighbor.synchronise();
-        }
     }
 
     private void addToMemPool(Transaction tx){
@@ -136,6 +133,8 @@ public class Miner implements IMiner {
         mempool.add(tx);
     }
 
+    // crée le bloc genèse
+    // à seulement besoin d'être appeler une fois pour initialiser tout le blockchain
     public ArrayList<IBlock> init() {
         // Initialize the genesis block.
         Block newGenesisBlock = (Block) mineBlock();
@@ -148,11 +147,21 @@ public class Miner implements IMiner {
 
     public ArrayList<Integer> connect() throws IOException {
         ArrayList<Integer> connectedNodes = new ArrayList<>();
+
         for (Miner miner : getAllOtherMiners()) {
             connectedNodes.add(miner.id);
+
+            socket = new DatagramSocket();
+
+            // on se connecte au port du mineur associé à ce client
+            socket.connect(InetAddress.getByName("localhost"), miner.port);
         }
+
         this.neighborNodes = connectedNodes;
-        logInConsole("Mineur " + id + " connecté aux nœuds : " + connectedNodes);
+
+
+        logInConsole("Mineur " + id + " connecté aux mineurs : " + connectedNodes);
+
         return connectedNodes;
     }
 
@@ -179,8 +188,8 @@ public class Miner implements IMiner {
 
     private void listenToMempool() {
         while (true) {
-            if (mempool.size() == 0 && blockchain.size() != 0) {
-                // aucunes transactions à mettre en blocs, donc on arrête (à moins, qu'il s'agit du bloc genèse (puisque n'a pas besoin de contenir de transactions))
+            if (mempool.size() == 0) {
+                // aucunes transactions à mettre en blocs)
                 continue;
             }
 
@@ -191,7 +200,7 @@ public class Miner implements IMiner {
     }
 
     public ArrayList<Block> synchronise() throws IOException{
-           ArrayList<Block> longestChain = new ArrayList<>(blockchain); // Copie locale de la chaîne actuelle
+       /*    ArrayList<Block> longestChain = new ArrayList<>(blockchain); // Copie locale de la chaîne actuelle
 
         for (Miner neighbor : getAllOtherMiners()) {
             ArrayList<IBlock> neighborChain = neighbor.blockchain; // Accéder à la blockchain d'un voisin
@@ -210,12 +219,12 @@ public class Miner implements IMiner {
             logInConsole("Aucune chaîne plus longue trouvée. Pas de synchronisation nécessaire.");
         }
 
-        return blockchain; // Retourne la blockchain synchronisée
+        return blockchain; // Retourne la blockchain synchronisée*/
+        return null; // TODO
     }
 
     private boolean validateBlock(IBlock previousBlock, IBlock currentBlock){
-        //return ((Block) currentBlock).getPreviousHash().equals(((Block) previousBlock).getCurrentHash()) && currentBlock.isValid();
-        return true; // TODO to change
+        return ((Block) currentBlock).getPreviousHash().equals(((Block) previousBlock).getCurrentHash()) && ((Block) currentBlock).blockHash.startsWith("0000");
     }
 
     public int getPort() {
