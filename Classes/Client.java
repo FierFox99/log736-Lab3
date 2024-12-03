@@ -49,8 +49,9 @@ public class Client implements IClient {
     private int getLastBlockDepth() throws IOException{
         /*try {
             if (socket != null && socket.isConnected()) {
-                PrintWriter writer = new PrintWriter(socket.getOutputStream(), true);
-                writer.println("DEMANDE_PROFONDEUR");
+                //PrintWriter writer = new PrintWriter(socket.getOutputStream(), true);
+                //writer.println("DEMANDE_PROFONDEUR");
+                trySendingMessage("DEMANDE_PROFONDEUR");
 
                 BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                 String response = reader.readLine();
@@ -81,8 +82,10 @@ public class Client implements IClient {
         /*try {
             if (socket != null && socket.isConnected()) {
 
-                PrintWriter writer = new PrintWriter(socket.getOutputStream(), true);
-                writer.println("DEMANDE_PROFONDEUR_TRANSACTION:" + transactionId);
+                //PrintWriter writer = new PrintWriter(socket.getOutputStream(), true);
+                //writer.println("DEMANDE_PROFONDEUR_TRANSACTION:" + transactionId);
+                trySendingMessage("DEMANDE_PROFONDEUR_TRANSACTION:" + transactionId);
+
 
                 BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                 String response = reader.readLine();
@@ -144,14 +147,15 @@ public class Client implements IClient {
         createTransaction();
         Transaction tx = transactions.get(transactions.size() - 1);
 
-        /*if (socket == null || !socket.isConnected()) {
+        if (socket == null || !socket.isConnected()) {
             System.err.println("Socket non connectée. Veuillez initialiser la connexion au mineur.");
             return;
         }
 
         try {
-            PrintWriter writer = new PrintWriter(socket.getOutputStream(), true);
-            writer.println("TRANSACTION:" + tx.toString());
+            // PrintWriter writer = new PrintWriter(socket.getOutputStream(), true);
+            // writer.println("TRANSACTION:" + tx.toString());
+            trySendingMessage("TRANSACTION:" + tx.toString());
 
             BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             String response = reader.readLine();
@@ -165,7 +169,7 @@ public class Client implements IClient {
         } catch (IOException e) {
             System.err.println("Erreur lors de l'envoi de la transaction : " + e.getMessage());
             e.printStackTrace();
-        }*/
+        }
 
     }
 
