@@ -1,8 +1,10 @@
-package Classes;
+package AlgoBitcoin;
 
+import AlgoBitcoin.Classes.Client;
+import AlgoBitcoin.Classes.HashfromString;
+import AlgoBitcoin.Classes.Miner;
+import AlgoBitcoin.Classes.Transaction;
 import org.junit.*;
-
-import java.util.Arrays;
 
 import static org.junit.Assert.*;
 

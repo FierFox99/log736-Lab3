@@ -1,12 +1,11 @@
-package Classes;
+package AlgoBitcoin.Classes;
 
-import Interfaces.IBlock;
-import Interfaces.IMiner;
+import AlgoBitcoin.Interfaces.IBlock;
+import AlgoBitcoin.Interfaces.IMiner;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 public class Miner implements IMiner {

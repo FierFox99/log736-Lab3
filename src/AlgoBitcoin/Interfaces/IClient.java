@@ -1,6 +1,4 @@
-package Interfaces;
-
-import Classes.Transaction;
+package AlgoBitcoin.Interfaces;
 
 import java.io.IOException;
 

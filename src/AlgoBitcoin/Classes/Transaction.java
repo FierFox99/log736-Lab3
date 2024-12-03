@@ -1,6 +1,6 @@
-package Classes;
+package AlgoBitcoin.Classes;
 
-import Interfaces.ITransaction;
+import AlgoBitcoin.Interfaces.ITransaction;
 
 public class Transaction implements ITransaction {
         private static int counterForIdOfTransactions = 0;

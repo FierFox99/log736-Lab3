@@ -1,4 +1,4 @@
-package Interfaces;
+package AlgoBitcoin.Interfaces;
 
 public interface ITransaction {
 

@@ -1,4 +1,4 @@
-package Classes;
+package AlgoBitcoin.Classes;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;

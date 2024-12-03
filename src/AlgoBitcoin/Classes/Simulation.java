@@ -1,4 +1,4 @@
-package Classes;
+package AlgoBitcoin.Classes;
 
 import java.io.IOException;
 

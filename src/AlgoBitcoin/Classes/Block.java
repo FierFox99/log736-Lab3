@@ -1,9 +1,10 @@
-package Classes;
+package AlgoBitcoin.Classes;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
-import Interfaces.*;
+
+import AlgoBitcoin.Interfaces.IBlock;
 
 public class Block implements IBlock {
     // si previousHash = null, cela signifie que ce bloc est à la profondeur la plus haute possible (donc le bloc le moins profond de la blockchain)

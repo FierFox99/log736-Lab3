@@ -1,6 +1,6 @@
-package Interfaces;
+package AlgoBitcoin.Interfaces;
 
-import Classes.Block;
+import AlgoBitcoin.Classes.Block;
 
 import java.io.IOException;
 import java.util.ArrayList;

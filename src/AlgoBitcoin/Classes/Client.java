@@ -1,6 +1,8 @@
-package Classes;
+package AlgoBitcoin.Classes;
 
-import Interfaces.IClient;
+
+
+import AlgoBitcoin.Interfaces.IClient;
 
 import java.io.*;
 import java.net.DatagramPacket;
@@ -8,7 +10,6 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
-import java.util.Map;
 
 public class Client implements IClient {
 
