@@ -188,7 +188,26 @@ public class Miner implements IMiner {
     }
 
     public ArrayList<Block> synchronise() throws IOException{
-        return null; // TODO
+           ArrayList<Block> longestChain = new ArrayList<>(blockchain); // Copie locale de la chaîne actuelle
+
+        for (Miner neighbor : getAllOtherMiners()) {
+            ArrayList<IBlock> neighborChain = neighbor.blockchain; // Accéder à la blockchain d'un voisin
+
+            // Vérifier si la chaîne du voisin est valide et plus longue que la chaîne actuelle
+            if (neighborChain.size() > longestChain.size()) {
+                longestChain = new ArrayList<>(neighborChain);
+            }
+        }
+
+        // Mettre à jour la blockchain locale si une chaîne plus longue est trouvée
+        if (longestChain.size() > blockchain.size()) {
+            blockchain = new ArrayList<>(longestChain);
+            logInConsole("La blockchain a été synchronisée avec la chaîne la plus longue trouvée.");
+        } else {
+            logInConsole("Aucune chaîne plus longue trouvée. Pas de synchronisation nécessaire.");
+        }
+
+        return blockchain; // Retourne la blockchain synchronisée
     }
 
     private boolean validateBlock(IBlock previousBlock, IBlock currentBlock){
