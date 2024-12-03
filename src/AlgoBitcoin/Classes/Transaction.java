@@ -34,7 +34,7 @@ public class Transaction implements ITransaction, Serializable {
                 return Base64.getEncoder().encodeToString(byteArrayOutputStream.toByteArray());
         }
 
-        public static Transaction deserializeThisTransaction(String serializedTransaction) throws IOException, ClassNotFoundException {
+        public static Transaction deserializeTransaction(String serializedTransaction) throws IOException, ClassNotFoundException {
                 byte [] data = Base64.getDecoder().decode( serializedTransaction );
                 ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(data));
                 Object objet  = ois.readObject();

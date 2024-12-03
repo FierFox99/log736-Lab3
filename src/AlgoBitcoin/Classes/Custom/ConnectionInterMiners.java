@@ -5,9 +5,9 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 
 public class ConnectionInterMiners {
-    DatagramSocket socketConnection;
-    InetAddress inetAddressOfTheOtherMiner;
-    int portOfTheOtherMiner;
+    public DatagramSocket socketConnection;
+    public InetAddress inetAddressOfTheOtherMiner;
+    public int portOfTheOtherMiner;
 
     public ConnectionInterMiners(DatagramSocket socket, InetAddress address, int port) {
         socketConnection = socket;

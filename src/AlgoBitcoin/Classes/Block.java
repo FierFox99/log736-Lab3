@@ -1,12 +1,14 @@
 package AlgoBitcoin.Classes;
 
+import java.io.*;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.Base64;
 import java.util.List;
 
 import AlgoBitcoin.Interfaces.IBlock;
 
-public class Block implements IBlock {
+public class Block implements IBlock, Serializable {
     // si previousHash = null, cela signifie que ce bloc est à la profondeur la plus haute possible (donc le bloc le moins profond de la blockchain)
     private String previousHash; // contient la valeur hashé représentant le bloc précédent (en terme de profondeur)
     private String merkleRoot; // hash du bloc actuel?
@@ -64,5 +66,20 @@ public class Block implements IBlock {
         return this.blockHash;
     }
 
+    public String serializeThisBlock() throws IOException {
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        ObjectOutputStream outputStream = new ObjectOutputStream( byteArrayOutputStream );
+        outputStream.writeObject( this ); // on passe l'objet à sérializer
+        outputStream.close();
+        return Base64.getEncoder().encodeToString(byteArrayOutputStream.toByteArray());
+    }
 
+    public static Block deserializeBlock(String serializedBlock) throws IOException, ClassNotFoundException {
+        byte [] data = Base64.getDecoder().decode( serializedBlock );
+        ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(data));
+        Object objet  = ois.readObject();
+        ois.close();
+
+        return (Block) objet;
+    }
 }

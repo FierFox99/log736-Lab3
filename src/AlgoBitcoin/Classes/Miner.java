@@ -18,15 +18,16 @@ public class Miner implements IMiner {
     private static int portCounter = 25000;
     private static ArrayList<Miner> allMiners = new ArrayList<>();
     private int id;
-    private DatagramSocket socket;
+    private DatagramSocket socketOfClient;
     private int port;
-    private ArrayList<IBlock> blockchain = new ArrayList<>();
+    private static ArrayList<IBlock> blockchain = new ArrayList<>();
     private ArrayList<ArrayList<IBlock>> branches = new ArrayList<>();
     private ArrayList<Integer> neighborNodes = new ArrayList<>();
     private HashMap<Integer, ConnectionInterMiners> connectionstoOtherMiners = new HashMap<>(); // clé = id d'un autre mineur, la valeur = les informations de connexion à ce mineur en question
     private volatile List<Transaction> mempool = new ArrayList<>(); // les transactions que nous avons reçu en attente d'être confirmés et insérés dans un bloc
     private ArrayList<Thread> threadConnexions = new ArrayList<>();
     private HashMap<Integer,DatagramPacket> associationTransactionIdAvecInfosClient = new HashMap<>(); // ce dictionnaire associe l'id d'une transaction à les informations nécessaires pour retourner une réponse au client ayant envoyé cette transaction
+    private volatile HashMap<String,Integer> nbConfirmationsParBloc = new HashMap<>(); // pour la validation des blocs par au moins la moitié des mineurs
 
     public Miner(int id) throws IOException {
         this.id = id;
@@ -151,10 +152,13 @@ public class Miner implements IMiner {
         for (Miner miner : getAllOtherMiners()) {
             connectedNodes.add(miner.id);
 
-            socket = new DatagramSocket();
+            DatagramSocket socketOtherMiner = new DatagramSocket();
+            InetAddress address = InetAddress.getByName("localhost");
 
             // on se connecte au port du mineur associé à ce client
-            socket.connect(InetAddress.getByName("localhost"), miner.port);
+            socketOtherMiner.connect(address, miner.port);
+
+            connectionstoOtherMiners.put(miner.id, (new ConnectionInterMiners(socketOtherMiner, address, miner.port)));
         }
 
         this.neighborNodes = connectedNodes;
@@ -167,7 +171,7 @@ public class Miner implements IMiner {
 
     //calls mineBlock method whenever it collects transactions and validates received blocks and adds it to the current chain
     public void listenToNetwork()throws IOException{
-        socket = new DatagramSocket(port); // crée un socket écoutant sur ce port de localhost
+        socketOfClient = new DatagramSocket(port); // crée un socket écoutant sur ce port de localhost
         byte bufferToReceive[] = new byte[1024];
         // this datagramPacket represents a request received by the miner
         DatagramPacket datagramPacketOfRequestReceived = new DatagramPacket(bufferToReceive, 1024);
@@ -176,16 +180,22 @@ public class Miner implements IMiner {
 
         while (true) {
             // this function waits until a request is received
-            socket.receive(datagramPacketOfRequestReceived);
+            socketOfClient.receive(datagramPacketOfRequestReceived);
 
             String messageOfRequest = new String(datagramPacketOfRequestReceived.getData(), 0, datagramPacketOfRequestReceived.getLength());
 
-            handleRequest(messageOfRequest, datagramPacketOfRequestReceived);
+            // on gère les requêtes dans un autre thread afin de pouvoir gérer plusieurs requêtes en même temps
+            Thread thread = new Thread(() -> {
+                handleRequest(messageOfRequest, datagramPacketOfRequestReceived);
+            }, "ThreadMiner#" + id + "HandleRequest");
+            threadConnexions.add(thread);
+            thread.start();
 
             // EXEMPLE POUR TEST: sendResponseMessageToARequest("Response: " + messageOfRequest, datagramPacketOfRequestReceived);
         }
     }
 
+    // gère les transactions en attente de confirmation
     private void listenToMempool() {
         while (true) {
             if (mempool.size() == 0) {
@@ -193,9 +203,45 @@ public class Miner implements IMiner {
                 continue;
             }
 
+            // mine block
             Block newBlock = (Block) mineBlock();
+
+            // seeking validation/confirmation of block
+            logInConsole("Requêtes de validation envoyées.");
+
+            nbConfirmationsParBloc.put(newBlock.blockHash, 0);
+            sendNewBlockToOtherMiners(newBlock);
+
+            if (validateBlock(newBlock)) {
+                // le bloc est valide selon ce mineur
+                nbConfirmationsParBloc.put(newBlock.blockHash, nbConfirmationsParBloc.get(newBlock.blockHash) + 1);
+                logInConsole("Validations pour le bloc (" + newBlock.blockHash + "): (" + nbConfirmationsParBloc.get(newBlock.blockHash) + "/" + allMiners.size() + ")");
+            }
+
+            while (true) {
+                if (nbConfirmationsParBloc.get(newBlock.blockHash) > (allMiners.size() / 2)) {
+                    // nous avons accumulé assez de validation pour continuer notre calcul
+                    break;
+                }
+            }
+
+            logInConsole("Le bloc " + newBlock.blockHash + " a été validé par plus de la moitié des mineurs.");
+
+            // on check si le blockchain avec ce block est bien le plus long blockchain qu'on connait
+
+
+
+            // si, oui
             addBlock(newBlock);
             logInConsole("Il y a dorénavant " + blockchain.size() + " blocks dans le blockchain.");
+
+            // on diffuse ce nouveau blockchain aux autres mineurs
+
+
+
+
+
+
         }
     }
 
@@ -223,7 +269,9 @@ public class Miner implements IMiner {
         return null; // TODO
     }
 
-    private boolean validateBlock(IBlock previousBlock, IBlock currentBlock){
+    private boolean validateBlock(IBlock currentBlock){
+        IBlock previousBlock = blockchain.get(blockchain.size() - 1);
+
         return ((Block) currentBlock).getPreviousHash().equals(((Block) previousBlock).getCurrentHash()) && ((Block) currentBlock).blockHash.startsWith("0".repeat(Miner.difficulty));
     }
 
@@ -237,34 +285,83 @@ public class Miner implements IMiner {
         if (message.contains(":") && (Objects.equals(message.split(":")[0], "TRANSACTION"))) {
             // la requête s'agit d'une transaction
             try {
-                Transaction transactionObtenue = Transaction.deserializeThisTransaction(message.split(":")[1]);
+                Transaction transactionObtenue = Transaction.deserializeTransaction(message.split(":")[1]);
 
                 addToMemPool(transactionObtenue);
                 associationTransactionIdAvecInfosClient.put(transactionObtenue.transactionId, datagramPacketOfRequest);
 
-                System.out.println("Transaction reçu #" + transactionObtenue.transactionId);
+                logInConsole("Transaction reçu #" + transactionObtenue.transactionId);
             } catch (Exception e) {
                 logInConsole("An error occured during the deserialization of a transaction: " + e.getMessage());
             }
+        }
+
+        // reçoit un bloc d'un autre mineur
+        // syntaxe: "VALIDATION:{blockHash}:{minerSenderID}"
+        if (message.contains(":") && (Objects.equals(message.split(":")[0], "VALIDATION"))) {
+            try {
+                Block blockObtenu = Block.deserializeBlock(message.split(":")[1]);
+
+                boolean result = validateBlock(blockObtenu);
+
+                logInConsole("La validation du bloc " + blockObtenu.blockHash + " retourne: " + result);
+
+                ConnectionInterMiners connection = connectionstoOtherMiners.get(Integer.parseInt(message.split(":")[2]));
+
+                // on répond à la requête de validation
+                trySendingMessage(blockObtenu.blockHash + ":" + result, connection.inetAddressOfTheOtherMiner, connection.portOfTheOtherMiner, connection.socketConnection);
+            } catch (Exception e) {
+                logInConsole("An error occured during the deserialization of a block: " + e.getMessage());
+            }
+        }
+
+        // reçoit la réponse de validation (d'un autre mineur) à ton bloc
+        if (message.contains(":") && ((Objects.equals(message.split(":")[1], "true")) || (Objects.equals(message.split(":")[1], "false")))) {
+            if (Objects.equals(message.split(":")[1], "false")) {
+                return; // la validation est négative, donc on l'ignore
+            }
+
+            String blockHash = message.split(":")[0];
+
+            // Si ce n'est pas faux, cela signfie que la validation est vrai (donc on incrémente le # de validations pour ce bloc)
+            nbConfirmationsParBloc.put(blockHash, nbConfirmationsParBloc.get(blockHash) + 1);
+            logInConsole("Validations pour le bloc (" + blockHash + "): (" + nbConfirmationsParBloc.get(blockHash) + "/" + allMiners.size() + ")");
         }
     }
 
     private void sendResponseMessageToARequest(String message, DatagramPacket datagramPacketOfRequest) throws IOException {
         // On envoie le message au client ayant envoyé cette requête (selon les infos du client envoyés dans celle-ci)
-        trySendingMessage(message, datagramPacketOfRequest.getAddress(), datagramPacketOfRequest.getPort());
+        trySendingMessageToClient(message, datagramPacketOfRequest.getAddress(), datagramPacketOfRequest.getPort());
     }
 
-    private void trySendingMessage(String message, InetAddress address, int port) throws IOException {
+    private void trySendingMessageToClient(String message, InetAddress address, int port) throws IOException {
+        trySendingMessage(message, address, port, socketOfClient);
+    }
+
+    private void trySendingMessage(String message, InetAddress address, int port, DatagramSocket specificSocket) throws IOException {
         DatagramPacket datagramPacketToSendRequest = new DatagramPacket(new byte[1024], 1024);
         datagramPacketToSendRequest.setPort(port);
         datagramPacketToSendRequest.setAddress(address);
         datagramPacketToSendRequest.setLength(message.length());
         datagramPacketToSendRequest.setData(message.getBytes());
 
-        socket.send(datagramPacketToSendRequest);
+        specificSocket.send(datagramPacketToSendRequest);
     }
 
     private void logInConsole(String message) {
-        System.out.println("Dans miner du port #" + this.port + " : " + message);
+        System.out.println("Dans miner #" + this.id + " : " + message);
+    }
+
+    // TODO is this the "synchronise()" function?
+    private void sendNewBlockToOtherMiners(Block block) {
+        for (Integer i: neighborNodes) {
+            ConnectionInterMiners connection = connectionstoOtherMiners.get(i);
+
+            try {
+                trySendingMessage("VALIDATION:" + block.serializeThisBlock() + ":" + id, connection.inetAddressOfTheOtherMiner, connection.portOfTheOtherMiner, connection.socketConnection);
+            } catch (Exception e) {
+                logInConsole("An error occured during the deserialization of a block: " + e.getMessage());
+            }
+        }
     }
 }
