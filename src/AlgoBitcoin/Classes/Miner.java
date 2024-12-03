@@ -126,6 +126,9 @@ public class Miner implements IMiner {
         // Logic to add a block to the end of the chain.
         blockchain.add(block);
         logInConsole("Bloc ajouté par le mineur " + id);
+        for (Miner neighbor : getAllOtherMiners()) {
+            neighbor.synchronise();
+        }
     }
 
     private void addToMemPool(Transaction tx){
