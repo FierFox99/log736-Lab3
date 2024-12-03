@@ -152,6 +152,7 @@ public class Client implements IClient {
 
     public void sendTransaction()throws IOException {
         createTransaction();
+
         Transaction tx = transactions.get(transactions.size() - 1);
 
         if (socket == null || !socket.isConnected()) {
@@ -162,6 +163,7 @@ public class Client implements IClient {
         try {
             trySendingMessage("TRANSACTION:" + tx.serializeThisTransaction());
 
+        System.out.println("test");
             String response = waitToReceiveResponseToRequest();
 
             if ("OK".equals(response)) {
