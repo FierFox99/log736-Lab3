@@ -143,12 +143,12 @@ public class Client implements IClient {
         }
 
         try {
-            trySendingMessage("TRANSACTION:" + tx.serializeThisTransaction());
+            trySendingMessage("TRANSACTION:" + tx.serializeThisTransaction() + ":" + socket.getLocalPort());
 
             String response = waitForConfirmation(tx.transactionId);
 
             if (response.startsWith("OK")) {
-                System.out.println("Transaction envoyée avec succès au mineur : " + response);
+                System.out.println("La transaction a été confirmé par le mineur.");
                 confirmAllTransactionsInTheBlock(response);
             } else {
                 System.err.println("Échec de l'envoi de la transaction : " + response);

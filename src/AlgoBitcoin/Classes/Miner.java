@@ -15,7 +15,7 @@ public class Miner implements IMiner {
     private static int portCounter = 25000;
     private static ArrayList<Miner> allMiners = new ArrayList<>();
     private int id;
-    private DatagramSocket socketOfClient;
+    private DatagramSocket socketOfThisMiner;
     private int port;
     private static ArrayList<IBlock> blockchain = new ArrayList<>();
     private static ArrayList<ArrayList<IBlock>> branches = new ArrayList<>();
@@ -23,7 +23,7 @@ public class Miner implements IMiner {
     private HashMap<Integer, ConnectionInterMiners> connectionstoOtherMiners = new HashMap<>(); // clé = id d'un autre mineur, la valeur = les informations de connexion à ce mineur en question
     private volatile List<Transaction> mempool = new ArrayList<>(); // les transactions que nous avons reçu en attente d'être confirmés et insérés dans un bloc
     private ArrayList<Thread> threadConnexions = new ArrayList<>();
-    private HashMap<Integer,DatagramPacket> associationTransactionIdAvecInfosClient = new HashMap<>(); // ce dictionnaire associe l'id d'une transaction à les informations nécessaires pour retourner une réponse au client ayant envoyé cette transaction
+    private HashMap<Integer,Integer> associationTransactionIdAvecInfosClient = new HashMap<>(); // ce dictionnaire associe l'id d'une transaction au port du client pour retourner une réponse au client ayant envoyé cette transaction
     private volatile HashMap<String,Integer> nbConfirmationsParBloc = new HashMap<>(); // pour la validation des blocs par au moins la moitié des mineurs
 
     public Miner(int id) throws IOException {
@@ -172,7 +172,7 @@ public class Miner implements IMiner {
 
     //calls mineBlock method whenever it collects transactions and validates received blocks and adds it to the current chain
     public void listenToNetwork()throws IOException{
-        socketOfClient = new DatagramSocket(port); // crée un socket écoutant sur ce port de localhost
+        socketOfThisMiner = new DatagramSocket(port); // crée un socket écoutant sur ce port de localhost
         byte bufferToReceive[] = new byte[1024];
         // this datagramPacket represents a request received by the miner
         DatagramPacket datagramPacketOfRequestReceived = new DatagramPacket(bufferToReceive, 1024);
@@ -181,13 +181,13 @@ public class Miner implements IMiner {
 
         while (true) {
             // this function waits until a request is received
-            socketOfClient.receive(datagramPacketOfRequestReceived);
+            socketOfThisMiner.receive(datagramPacketOfRequestReceived);
 
             String messageOfRequest = new String(datagramPacketOfRequestReceived.getData(), 0, datagramPacketOfRequestReceived.getLength());
 
             // on gère les requêtes dans un autre thread afin de pouvoir gérer plusieurs requêtes en même temps
             Thread thread = new Thread(() -> {
-                handleRequest(messageOfRequest, datagramPacketOfRequestReceived);
+                handleRequest(messageOfRequest);
             }, "ThreadMiner#" + id + "HandleRequest");
             threadConnexions.add(thread);
             thread.start();
@@ -250,7 +250,7 @@ public class Miner implements IMiner {
             logInConsole("On répond aux clients ayant effectués les requêtes contenus dans ce bloc.");
 
             String responseToClient = "OK";
-            HashSet<DatagramPacket> clientsToRespondTo = new HashSet<>();
+            HashSet<Integer> clientsToRespondTo = new HashSet<>();
 
             for (Integer i: newBlock.transactions) {
                 responseToClient += (":" + i); // l'id d'une des transactions du nouveau bloc
@@ -258,8 +258,8 @@ public class Miner implements IMiner {
                 clientsToRespondTo.add(associationTransactionIdAvecInfosClient.get(i));
             }
 
-            for (DatagramPacket dp : clientsToRespondTo) {
-                sendResponseMessageToClient(responseToClient, dp);
+            for (Integer port : clientsToRespondTo) {
+                sendResponseMessageToClient(responseToClient, port);
             }
         }
     }
@@ -288,16 +288,17 @@ public class Miner implements IMiner {
         return port;
     }
 
-    private void handleRequest(String message, DatagramPacket datagramPacketOfRequest) {
+    private void handleRequest(String message) {
         logInConsole("Requête reçue (" + message + ")");
 
+        // syntaxe: "TRANSACTION:{transactionSerialize}:{portOfClient}"
         if (message.contains(":") && (Objects.equals(message.split(":")[0], "TRANSACTION"))) {
             // la requête s'agit d'une transaction
             try {
                 Transaction transactionObtenue = Transaction.deserializeTransaction(message.split(":")[1]);
 
                 addToMemPool(transactionObtenue);
-                associationTransactionIdAvecInfosClient.put(transactionObtenue.transactionId, datagramPacketOfRequest);
+                associationTransactionIdAvecInfosClient.put(transactionObtenue.transactionId, Integer.parseInt(message.split(":")[2]));
 
                 logInConsole("Transaction reçu #" + transactionObtenue.transactionId);
             } catch (Exception e) {
@@ -346,13 +347,13 @@ public class Miner implements IMiner {
         }
     }
 
-    private void sendResponseMessageToClient(String message, DatagramPacket datagramPacketOfRequest) throws IOException {
+    private void sendResponseMessageToClient(String message, int port) throws IOException {
         // On envoie le message au client ayant envoyé cette requête (selon les infos du client envoyés dans celle-ci)
-        trySendingMessageToClient(message, datagramPacketOfRequest.getAddress(), datagramPacketOfRequest.getPort());
+        trySendingMessageToClient(message, InetAddress.getByName("localhost"), port,socketOfThisMiner);
     }
 
-    private void trySendingMessageToClient(String message, InetAddress address, int port) throws IOException {
-        trySendingMessage(message, address, port, socketOfClient);
+    private void trySendingMessageToClient(String message, InetAddress address, int port, DatagramSocket socket) throws IOException {
+        trySendingMessage(message, address, port, socket);
     }
 
     private void trySendingMessage(String message, InetAddress address, int port, DatagramSocket specificSocket) throws IOException {
