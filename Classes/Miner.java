@@ -3,24 +3,43 @@ package Classes;
 import Interfaces.IBlock;
 import Interfaces.IMiner;
 import java.io.IOException;
+import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class Miner implements IMiner {
 
-    public final static int BLOCK_SIZE = 10;
+    public final static int BLOCK_SIZE = 10; // le # de transactions maximum pouvant être stockés dans un seul bloc
+    private static int portCounter = 25000;
     private static ArrayList<Miner> allMiners = new ArrayList<>();
     private int id;
     private DatagramSocket socket;
+    private int port;
     private ArrayList<IBlock> blockchain = new ArrayList<>();
     private ArrayList<ArrayList<IBlock>> branches = new ArrayList<>();
     private ArrayList<Integer> neighborNodes = new ArrayList<>();
     private List<Transaction> mempool = new ArrayList<>(); // les transactions que nous avons reçu en attente d'être confirmés et insérés dans un bloc
+    private ArrayList<Thread> threadConnexions = new ArrayList<>();
 
-    public Miner(int id) {
+    public Miner(int id) throws IOException {
         this.id = id;
+        this.port = portCounter;
+        portCounter += 100;
         allMiners.add(this);
+
+        init(); // retourne le blockchain why?
+
+        Thread thread = new Thread(() -> {
+            try {
+                listenToNetwork();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }, "threadMineur" + port + "Listener");
+        threadConnexions.add(thread);
+        thread.start();
     }
 
     public ArrayList<Miner> getAllOtherMiners() {
@@ -48,6 +67,16 @@ public class Miner implements IMiner {
     private IBlock mineBlock() {
         // Mining logic goes here.
         ArrayList<Transaction> transactionsToConfirm = (ArrayList<Transaction>) mempool;
+
+        if (transactionsToConfirm.size() > BLOCK_SIZE) {
+            // trop de transactions pour un seul bloc, donc il faut seulement mettre BLOCK_SIZE (nombre) de transactions dans le bloc
+            transactionsToConfirm = new ArrayList<>();
+
+            for (int i = 0; i < BLOCK_SIZE; i++) {
+                transactionsToConfirm.add(mempool.get(i));
+            }
+        }
+
         mempool.removeAll(transactionsToConfirm); // on fait ça de cette manière pour que cette opération supporte le fait qu'on puisse recevoir de nouvelles transactions même durant celle-ci
 
         // on converti les transactions à juste leurs ids
@@ -91,7 +120,7 @@ public class Miner implements IMiner {
         System.out.println("Transaction ajoutée à la mempool par le mineur " + id);
     }
 
-    public ArrayList<IBlock> init() throws IOException {
+    public ArrayList<IBlock> init() {
         // Initialize the genesis block.
         Block newGenesisBlock = (Block) mineBlock();
 
@@ -113,9 +142,22 @@ public class Miner implements IMiner {
 
     //calls mineBlock method whenever it collects transactions and validates received blocks and adds it to the current chain
     public void listenToNetwork()throws IOException{
+        socket = new DatagramSocket(port); // crée un socket écoutant sur ce port de localhost
+        byte bufferToReceive[] = new byte[1024];
+        // this datagramPacket represents a request received by the miner
+        DatagramPacket datagramPacketOfRequestReceived = new DatagramPacket(bufferToReceive, 1024);
+
+        while (true) {
+            // this function waits until a request is received
+            socket.receive(datagramPacketOfRequestReceived);
+
+            String messageOfRequest = new String(datagramPacketOfRequestReceived.getData(), 0, datagramPacketOfRequestReceived.getLength());
+
+            System.out.println(messageOfRequest);
+        }
+
         // Simulation d'écoute réseau
-        Object message = receiveMessage();
-        if (message instanceof Transaction) {
+        /*if (message instanceof Transaction) {
             addToMemPool((Transaction) message);
         } else if (message instanceof IBlock) {
             IBlock receivedBlock = (IBlock) message;
@@ -124,7 +166,7 @@ public class Miner implements IMiner {
             } else {
                 System.out.println("Bloc invalide reçu par le mineur " + id);
             }
-        }
+        }*/
     }
 
     public ArrayList<Block> synchronise() throws IOException{
@@ -132,7 +174,15 @@ public class Miner implements IMiner {
     }
 
     private boolean validateBlock(IBlock previousBlock, IBlock currentBlock){
-        return currentBlock.getPreviousHash().equals(previousBlock.getHash()) && currentBlock.isValid();
+        //return ((Block) currentBlock).getPreviousHash().equals(((Block) previousBlock).getCurrentHash()) && currentBlock.isValid();
+        return true; // TODO to change
+    }
+
+    public int getPort() {
+        return port;
+    }
+
+    private void handleRequest(String requestMessage) {
 
     }
 }
