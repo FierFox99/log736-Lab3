@@ -46,7 +46,7 @@ public class Block implements IBlock {
         while (true) {
             calculateRoot(); // calcule un hashage pour ce bloc selon les 3 critères/variables utilisées dans la fonction
 
-            if (merkleRoot.startsWith("0000")) {
+            if (merkleRoot.startsWith("0".repeat(Miner.difficulty))) {
                 // si le hashage commence par 4 zéros, cela signifie qu'on a trouvé un bon hashage, donc on arrête
                 return merkleRoot;
             }

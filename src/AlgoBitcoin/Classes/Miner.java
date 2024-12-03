@@ -125,7 +125,7 @@ public class Miner implements IMiner {
     private void addBlock(Block block) {
         // Logic to add a block to the end of the chain.
         blockchain.add(block);
-        logInConsole("Bloc ajouté par le mineur " + id);
+        logInConsole("Bloc ajouté par le mineur " + id + " (hash du nouveau bloc: " + block.blockHash + ")");
     }
 
     private void addToMemPool(Transaction tx){
@@ -224,7 +224,7 @@ public class Miner implements IMiner {
     }
 
     private boolean validateBlock(IBlock previousBlock, IBlock currentBlock){
-        return ((Block) currentBlock).getPreviousHash().equals(((Block) previousBlock).getCurrentHash()) && ((Block) currentBlock).blockHash.startsWith("0000");
+        return ((Block) currentBlock).getPreviousHash().equals(((Block) previousBlock).getCurrentHash()) && ((Block) currentBlock).blockHash.startsWith("0".repeat(Miner.difficulty));
     }
 
     public int getPort() {
