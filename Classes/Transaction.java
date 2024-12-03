@@ -5,7 +5,7 @@ import Interfaces.ITransaction;
 public class Transaction implements ITransaction {
         private static int counterForIdOfTransactions = 0;
 
-        private int transactionId, clientId;
+        public int transactionId, clientId;
         private boolean confirmationState = false;
 
         public Transaction(int clientId){

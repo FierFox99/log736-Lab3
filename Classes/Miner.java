@@ -16,13 +16,10 @@ public class Miner implements IMiner {
     private ArrayList<IBlock> blockchain = new ArrayList<>();
     private ArrayList<ArrayList<IBlock>> branches = new ArrayList<>();
     private ArrayList<Integer> neighborNodes = new ArrayList<>();
-    private List<Transaction> mempool = new ArrayList<>();
+    private List<Transaction> mempool = new ArrayList<>(); // les transactions que nous avons reçu en attente d'être confirmés et insérés dans un bloc
 
     public Miner(int id) {
         this.id = id;
-        this.blockchain = new ArrayList<>();
-        this.branches = new ArrayList<>();
-        this.mempool = new ArrayList<>();
         allMiners.add(this);
     }
 
@@ -44,35 +41,49 @@ public class Miner implements IMiner {
                 System.out.println("Chaîne la plus longue définie par le mineur " + id);
             }
         }
+
+        branches.clear(); // on abandonne toutes les autres branches après avoir défini celle officielle
     }
 
-    //generates a new block, finds the corresponding PoW and sets the block's hash and nounce
-    private IBlock mineBlock(){
-        if (mempool.isEmpty()) {
-            System.out.println("Aucune transaction à miner pour le mineur " + id);
-            return null;
+    private IBlock mineBlock() {
+        // Mining logic goes here.
+        ArrayList<Transaction> transactionsToConfirm = (ArrayList<Transaction>) mempool;
+        mempool.removeAll(transactionsToConfirm); // on fait ça de cette manière pour que cette opération supporte le fait qu'on puisse recevoir de nouvelles transactions même durant celle-ci
+
+        // on converti les transactions à juste leurs ids
+        List<Integer> idsOfTransactionsToConfirm = new ArrayList<>();
+
+        for (Transaction t: transactionsToConfirm) {
+            idsOfTransactionsToConfirm.add(t.transactionId);
         }
 
-        IBlock previousBlock = blockchain.get(blockchain.size() - 1);
-        Block newBlock = new Block(previousBlock.getHash(), mempool.subList(0, Math.min(BLOCK_SIZE, mempool.size())));
+        Block newBlockToMine = null;
 
-        // Preuve de travail simplifiée
-        while (!newBlock.calculateHash().startsWith("0000")) {
-            newBlock.incrementNonce();
+        if (blockchain.size() == 0) {
+            // il n'y a pas d'autres blocks, donc nous allons créé/miné un bloc genèse
+            newBlockToMine = new Block(new ArrayList<>());
+        } else {
+            // un bloc normal (pas de genèse)
+            Block lastBlock = (Block) blockchain.get(blockchain.size() - 1);
+
+            // on peut prendre directement son hash (puisque celui-ci doit déjà avoir été hashé lors de son proof of work/lors qu'il a été miné)
+            newBlockToMine = new Block(lastBlock.blockHash, idsOfTransactionsToConfirm, lastBlock.depth);
         }
 
-        mempool.clear(); // Vide la mempool après minage
-        return newBlock;
+        /**
+         * On mine
+         */
+
+        // proof-of-worf/on mine
+        newBlockToMine.blockHash = newBlockToMine.calculateBlockHash();
+
+        return newBlockToMine; // Replace with an actual IBlock implementation.
     }
 
-    private void addBlock() {
+    private void addBlock(Block block) {
+        // Logic to add a block to the end of the chain.
         blockchain.add(block);
         System.out.println("Bloc ajouté par le mineur " + id);
-    }
-
-    private boolean validateBlock(IBlock previousBlock, IBlock currentBlock){
-        return currentBlock.getPreviousHash().equals(previousBlock.getHash()) && currentBlock.isValid();
-
     }
 
     private void addToMemPool(Transaction tx){
@@ -81,11 +92,13 @@ public class Miner implements IMiner {
     }
 
     public ArrayList<IBlock> init() throws IOException {
-        Block genesisBlock = new Block(null, new ArrayList<>());
-        genesisBlock.setHash(genesisBlock.calculateHash());
-        blockchain.add(genesisBlock);
+        // Initialize the genesis block.
+        Block newGenesisBlock = (Block) mineBlock();
+
+        addBlock(newGenesisBlock);
         System.out.println("Bloc de genèse créé par le mineur " + id);
-        return blockchain;
+
+        return blockchain; // Return initialized blockchain.
     }
 
     public ArrayList<Integer> connect() throws IOException {
@@ -115,12 +128,11 @@ public class Miner implements IMiner {
     }
 
     public ArrayList<Block> synchronise() throws IOException{
-        for (Miner miner : getAllOtherMiners()) {
-            if (miner.blockchain.size() > this.blockchain.size()) {
-                this.blockchain = new ArrayList<>(miner.blockchain);
-                System.out.println("Blockchain synchronisée avec le mineur " + miner.id + " par " + id);
-            }
-        }
-        return blockchain;
+        return null; // TODO
+    }
+
+    private boolean validateBlock(IBlock previousBlock, IBlock currentBlock){
+        return currentBlock.getPreviousHash().equals(previousBlock.getHash()) && currentBlock.isValid();
+
     }
 }

@@ -139,7 +139,7 @@ public class Client implements IClient {
 
             if ("ACK".equals(response)) {
                 System.out.println("Transaction envoyée avec succès au mineur : " + tx.toString());
-                waitForConfirmation(tx.getId());
+                waitForConfirmation(tx.transactionId);
             } else {
                 System.err.println("Échec de l'envoi de la transaction : " + response);
             }
