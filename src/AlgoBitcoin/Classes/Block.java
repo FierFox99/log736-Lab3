@@ -11,7 +11,7 @@ import AlgoBitcoin.Interfaces.IBlock;
 public class Block implements IBlock, Serializable {
     // si previousHash = null, cela signifie que ce bloc est à la profondeur la plus haute possible (donc le bloc le moins profond de la blockchain)
     private String previousHash; // contient la valeur hashé représentant le bloc précédent (en terme de profondeur)
-    private String merkleRoot; // hash du bloc actuel?
+    public String merkleRoot; // hash du bloc actuel?
     private int nounce = 0; // (la valeur de départ n'est pas très importante tant qu'il s'agit d'un int) (puisque cette propriété est juste un compteur qui changera de valeur lorsqu'on essaiera de hasher le bloc)
     private long timestamp; //  (le temps à la création du block? (utile pour différencier les blocks dans le hashage au lieu d'utiliser des clés?))
     public int depth; // la profondeur du bloc (ou son numéro dans le blockchain) (ou le nombre de bloc incluant ce bloc et ceux qui le précède)
